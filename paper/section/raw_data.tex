@@ -1,0 +1,213 @@
+\begin{table*}
+  \centering
+  \small
+  \begin{tabular}{lccccccc}
+    \toprule
+               &  {\bf Branch}  &{\bf Return}    &{\bf Scalar-pair}   & {\bf Working}& {\bf False}    &               & {\bf Distance} \\
+    {\bf BugID}&{\bf Predicates}&{\bf Predicates}&{\bf Predicates}    & {\bf Predicates}&{\bf Positive}  &{\bf Overhead} &{\bf  to Patch}\\
+    \midrule
+    Mozilla258793          &  26/64024   &  58/152724      &  ---       & B.N.T.        & 0  & &  0\\
+    Mozilla299742          &  31/64089   &  39/150973      &  ---       & B.N.T.        & 0  & &  0\\
+    Mozilla347306          &  1/6901     & 0/6729          &  8/30953   & ---           &    & & --- \\
+    Mozilla411722          &  1/8780     & 0/6889          &  1/34378   & B.T.          & 0  & &  1 \\
+    \midrule
+    MySQL15811             & 0/1198      & 0/886           &  ---       & ---           & &   & ---    \\
+    MySQL26527             & 7/7443      & 6/7631          &  ---       & B.N.T.        & 0 & & 0      \\
+    MySQL27287             & 5/5377      & 0/5762          &  ---       & ---           & &   & ---    \\
+    MySQL40337             & 15/7547     & 2/8161          &  ---       & B.N.T.        & 0 & & 1 \\
+    MySQL42649             & 31/15920    & 30/11800        &  ---       & B.T.          & 0 & & $\infty$ \\
+    MySQL44723             & 8/10649     & 0/9130          &  ---       & B.N.T.        & 0 & & $\infty$ \\
+    \midrule
+    Apache3278             &             &                 &            & P.R. & &            &  $\infty$ \\
+    Apache34464            & 0/17        &  0/23           &  0/203     & ---  & &            & ---\\
+    Apache47223            & 0/17        &  0/15           &  1/235     & ---  & &            & --- \\
+    Apache32546            &    &  &    &  & & & \\
+    \midrule
+    GCC1687                & 1/22656    & 0/17829          & 28/427649    & ---  &   &        & --- \\
+    GCC8805                & 0/23991    & 0/20530          & 34/406567    & ---  &   &        & --- \\
+    GCC15209               & 7/10324    & 0/10721          &  1/171789    & B.T. & 0 &        & 8 \\
+    GCC21430               & 3/45489    & 1/51266          & 107/646962   & ---  &   &        & --- \\
+    GCC46401               & 8/34378    & 1/38275          & 366/480594   & ---  &   &        & ---\\
+    GCC12322               & 1264/46715 & 263/38259        & 10927/877628 & ---  &   &        & --- \\
+    \bottomrule
+   \end{tabular}
+  \nocaptionrule
+  \caption{Experimental Results for in-house Diagnosis. ``B.T.'': Branch Taken; ``B.N.T.'': Branch Not Taken; ``P.R.'': Positive Return Value}
+  \label{tab:in-house}
+\end{table*}
+
+\begin{table*}[h!]
+  \centering
+  \small
+  \begin{tabular}{lccccccc}
+    \toprule    
+              & {\bf Executed} & {\bf False}        & {\bf Sampled} & {\bf False}       & {\bf Distance} &{\bf Relation}    & {\bf Relation}\\ 
+ {\bf BugID}  & {\bf Loop}     & {\bf Positive(I)}  & {\bf Loop }   & {\bf Positive(O)} & {\bf to Patch} &{\bf to Profiling}&{\bf to Patch} \\
+    \midrule
+    Mozilla347306          &        & 0 &    & 0 &  & Contained  & Remove the loop\\
+    \midrule
+    MySQL15811             &        & 0 &    & 0 &  & Contained  & Remove the loop\\
+    MySQL27287             &        & 0 &    & 0 &  & Contained  & Remove the loop\\
+    \midrule
+    Apache34464            &        & 0 &    & 0 &  & Contained  & Cache \\
+    Apache47223            &        & 0 &    & 0 &  & Contained  & Remove the loop\\
+    Apache32546            &        & 0 &    & 0 &  & Containing & Batch \\
+    \midrule
+    GCC1687                & 1738   & 0 &  2102  & 0 &  & Contained  & Cache\\
+    GCC8805                & 1815   & 0 &  2593  & 0 &  & Contained  & Reduce Data\\
+    GCC21430               & 4892   & 0 &  5141  & 0 &  & Contained  & Remove the loop\\
+    GCC46401               & 6124   & 1 &  7395  & 1 &  & Containing & Reduce Data\\
+    GCC12322               & 3252   & 0 &  3404  & 0 &  & Contained  & Reduce Data\\
+    \bottomrule
+   \end{tabular}
+  \nocaptionrule
+  \caption{Delta-LDA Experiments.}
+  \label{tab:LDA}
+\end{table*}
+
+\begin{algorithm}
+%\begin{algorithmic}[1]
+    \caption{NotTakenAnalysis($record$)}
+    \label{alg:not-taken}
+    \KwIn{One LBR Record: \par $record=[<source,dest>,...<source,dest>]$ }
+    \KwOut{Branch Events: \par
+          $result = [<address, bool>, ...<address, bool> ]$ \par  
+          $address$ is the binary address for the branch instruction \par 
+          $bool$ represents whether the branch is taken or not}
+    % \SetLine
+    $result=[ ]$  \\ 
+    \For {$i$ in $range(15:0)$}{
+       
+       \If {$record[i].source$ not in user space} {  
+           continue
+        }
+       $result$.add($<record[i].source, {\bf True}>$) \\
+       \If {$i == 0$} {
+           break
+       }
+       \If {$record[i-1].source$ not in user space } {
+           continue
+       }
+       $pInstruction = record[i].dest$ \\
+       $tmp = [ ]$  \\
+       $flag = true$ \\
+       \While {$pInsturction != record[i-1].source$}{
+          \If {$pInstruction$ is branch instruction} { 
+               $tmp$.add($<pInstruction, {\bf False}>$)
+           }
+           \ElseIf {$pInstruction$ is call or return}{
+                flag = false \\
+                break
+           }
+           $pInstruction =$ next instruction from coredump \\
+       }
+
+       \If {$flag$ } {
+          $result$.add($tmp$)
+       }
+  }
+  return $result$ \\
+%\end{algorithmic}
+\end{algorithm}
+
+\begin{table}[h!]
+  \centering
+  \small
+  \begin{tabular}{lccccc}
+    \toprule     
+   {\bf BugID}             & {\bf S.B. } & {\bf S.L.}   & {\bf B.F.} & {\bf F.P.}  &{\bf Overhead} \\
+    \midrule
+    Mozilla258793          &  74042  &  3084  & 2388   &   & \\
+    Mozilla299742          &  60439  &  2735  & 1305   &  & \\
+    Mozilla347306          &    &  &    &  & \\
+    Mozilla411722          &    &  &    &  & \\
+    \midrule
+    MySQL15811             &    &  &    &  & \\
+    MySQL26527             &    &  &    &  & \\
+    MySQL27287             &    &  &    &  & \\
+    MySQL40337             &    &  &    &  & \\
+    MySQL42649             &    &  &    &  & \\
+    MySQL44723             &    &  &    &  & \\
+    \midrule
+    Apache3278             &    &  &    &  & \\
+    Apache34464            &    &  &    &  & \\
+    Apache47223            &    &  &    &  & \\
+    Apache32546            &    &  &    &  & \\
+    \midrule
+    GCC1687                &  14540   & 222    &  75     & 0 & \\
+    GCC8805                &  21878   & 1656   &  1163   & 0 & \\
+    GCC15209               &     &        &         &  & \\
+    GCC21430               &  31816   & 2829   &  779    & 0 & \\
+    GCC46401               &  31264   & 2361   &  455    & 0 & \\
+    GCC12322               &  43824   & 2778   &  1693   & 0 & \\
+    \bottomrule
+   \end{tabular}
+  \nocaptionrule
+  \caption{LBR Experiments. ``S.B.'': Sampled Branches; ``S.L.'': Sampled Loops; 
+ ``B.F.'': Branches Filtered by Increase; ``F.P.'': False Positive.}
+  \label{tab:LBR}
+\end{table}
+
+\begin{table*}[h!]
+  \centering
+  \small
+  \begin{tabular}{lcccccc}
+    \toprule
+               &  {\bf Branch}  &{\bf Return}    &{\bf Scalar-pair}   & {\bf Working}& {\bf False}    &                \\
+    {\bf BugID}&{\bf Predicates}&{\bf Predicates}&{\bf Predicates}    & {\bf or Not?}&{\bf Positive}  &{\bf Overhead} \\
+    \midrule
+    Mozilla258793          &  2176/75721      &   1399/172557     &  ---         &  & &  \\
+    Mozilla299742          &  1570/68913      &   1131/160567     &  ---         &  & &  \\
+    Mozilla347306          &  76/8244         &   5/7609          &  158/37665   &  & &  \\
+    Mozilla411722          &  98/             &   12/             &  140/    &         &  &  \\
+    \midrule
+    MySQL15811             & 3/1198     & 0/886     &  ---   &  & &  \\
+    MySQL26527             & 62/7447    & 25/7627    &  ---  &  & &  \\
+    MySQL27287             & 10/5374    & 2/5766    &  ---   &  & &  \\
+    MySQL40337             & 66/8690    & 14/8480   &  ---   &   & &  \\
+    MySQL42649             & 109/17384  & 96/12627 &  ---    &   & &  \\
+    MySQL44723             & 21/10489   & 10/9143   &  ---   &  & &  \\
+    \midrule
+    Apache3278             &    &  &    &  & &  \\
+    Apache34464            &    &  &    &  & &  \\
+    Apache47223            &    &  &    &  & &  \\
+    Apache32546            &    &  &    &  & &  \\
+    \midrule
+    GCC1687                & 54/   & 6/ & 395/   &  & &  \\
+    GCC8805                & 208/  & 41/    &   3042/     &  & &  \\
+    GCC15209               & 85/   & 13/ & 301/   &  & &  \\
+    GCC21430               &   &  &    &  & &  \\
+    GCC46401               & 853/ & 213/  & 8522/   &  & &  \\
+    GCC12322               & 9721/   & 1619/  & 77792/   &  & &  \\
+    \bottomrule
+   \end{tabular}
+  \nocaptionrule
+  \caption{Experimental Results for on-line Diagnosis}
+  \label{tab:on-line}
+\end{table*}
+
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\multicolumn{1}{|c|}{Root Cause Categories} &Apache&Chrome&GCC&Mozilla&MySQL&Total\\
+\hline
+Total \# of loop-related bugs    & 10 & 4 & 7 & 12 & 9 & 42 \\
+\hline
+\multicolumn{1}{|l|}{\textbf{Workless: does not generate results}}
+&0&3&2&8&5&18\\
+\ \ Workless $0*1?$: may only generate results in last iteration &0&0&1&3&3&7\\
+\ \ Workless $[0|1]*$: may generate results in each iteration    &0&1&1&1&1&4\\
+\ \ Workless $1*$: Workless due to semantic reasons              &0&2&0&4&1&7\\
+\hline
+\multicolumn{1}{|l|}{\textbf{Redundancy: repeated work inside the loop}}
+&9&1&1&4&1&16\\
+\ \ Cross-iteration Redundancy
+&6&1&1&1&1&10\\
+\ \ Cross-loop Redundancy
+&3&0&0&3&0&6\\
+\hline
+\multicolumn{1}{|l|}{\textbf{Others}}
+&1&0&4&0&3&8\\
+\hline
+\end{tabular}
+
+

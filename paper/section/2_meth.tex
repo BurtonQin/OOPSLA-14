@@ -1,0 +1,125 @@
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{@{\hspace{3pt}}l@{\hspace{3pt}}|@{\hspace{3pt}}c@{\hspace{3pt}}}
+\hline
+Application Suite Description (language) & \# Bugs \\
+\hline                            
+{\bf Apache Suite} 	 & 16\\
+%\cline{1-1}
+{HTTPD:	Web Server (C)	}& \\
+{TomCat:  Web Application Server (Java)}& \\
+{Ant:	Build management utility (Java)}& \\
+%\hline
+%JMeter	& Load test utility (Java) & \\
+\hline                            
+{\bf Chromium Suite} Google Chrome browser (C/C++) & 5\\
+\hline
+%\multicolumn{2}{|l|}
+{\bf GCC Suite}  GCC \& G++ Compiler (C/C++)     & 9\\
+\hline
+{\bf Mozilla Suite}  & 19\\
+%\cline{1-1}
+{Firefox: Web Browser (C++, JavaScript)}& 	\\
+{Thunderbird: Email Client (C++, JavaScript)}& \\
+\hline
+{\bf MySQL Suite}     & 16	\\
+%\cline{1-1}
+{Server: Database Server (C/C++)}&  	\\
+%\cline{1}
+{Connector: DB Client Libraries (C/C++/Java/.Net)} &  	\\
+\hline
+{\bf Total}	   & 65 \\
+\hline
+\end{tabular}
+\caption{Applications and bugs used in the study}
+\label{tab:app_bug}
+\end{table}
+
+\begin{table*}[tb!]
+\begin{adjustwidth}{-.5in}{-.5in}
+\small
+\centering
+{
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\multicolumn{1}{|c|}{Categories} &Apache&Chrome&GCC&Mozilla&MySQL&Total\\
+\hline
+\multicolumn{1}{|l|}{\textbf{Comparison within one code base}}
+&9&3&7&7&12&38\\
+\ \ Comparing the same input with different configurations &2&1&1&1&5&10\\
+\ \ Comparing inputs with different sizes&6&2&4&4&6&22\\
+\ \ Comparing inputs with slightly different functionality&2&0&3&2&4&11\\
+\hline
+\multicolumn{1}{|l|}{\textbf{Comparison cross multiple code bases}}
+&7&3&8&5&4&27\\
+\ \ Comparing the same input under same application's different versions
+&4&2&8&3&3&20\\
+\ \ Comparing the same input under different applications
+&4&1&1&2&1&9\\
+\hline
+\multicolumn{1}{|l|}{\textbf{Not using comparison-based methods}}
+&3&1&0&9&1&14\\
+\hline
+\end{tabular}
+}
+\end{adjustwidth}
+\caption{How performance problems are observed by end users (There are overlaps among
+    different comparison-based categories; there is no overlap between non-comparison
+    and comparison-based categories)}
+\label{tab:cmp}
+\end{table*}
+
+The performance problems under this study include all user-reported
+performance problems from a real-world performance-bug benchmark suite 
+collected by 
+previous work \citep{PerfBug}. We briefly discuss this baseline benchmark
+suite and our refinement below.
+
+The baseline benchmarks \citep{PerfBug} contain 110 fixed real-world performance
+bugs randomly sampled from five representative open-source software suites.
+These five software suites are all large and mature,
+with millions lines of codes and well maintained bug databases. 
+They also provide a good coverage of different types of software projects, as
+shown in Table \ref{tab:app_bug}.
+The 110 bugs contained in this baseline suite are from
+on-line bug databases and are tagged by developers as performance
+bugs.
+
+We cannot directly use this baseline benchmark suite, because it contains
+bugs that are discovered by developers themselves through code inspection, a
+scenario that performance diagnosis does not apply.
+Consequently, we carefully read through all the bug reports and identify all 
+the \textbf{65} bugs that are clearly reported by users.
+These 65 bug reports all contain detailed information about how each 
+performance problem is observed by a user and gets diagnosed by developers.
+They are the target of the following characteristics study, and will be 
+referred to as \textit{user-reported performance problems} or 
+simply \textit{performance problems} in the remainder of this paper.
+The detailed distribution of these 65 bugs is shown in Table~\ref{tab:app_bug}.
+
+
+
+
+\paragraph{Caveats} 
+Similar with all previous characteristics studies, our findings and 
+conclusions need to be considered with our methodology in mind. 
+The applications in our study cover a variety of important software categories, 
+workload, development background, and programming languages. However, there are
+still uncovered categories, such as scientific computing software and 
+distributed systems.
+
+The bugs in our study are collected from an earlier benchmark suite 
+\citep{PerfBug} without bias. 
+We have followed users and developers' discussion to decide what are 
+performance problems that are noticed and reported by users, and finally
+diagnosed and fixed by developers.
+We did not intentionally ignore any aspect of performance problems. 
+Of course, our study does not cover performance problems that are 
+not reported to or fixed in the bug databases. It also does not cover
+performance problems that are indeed reported by users but have undocumented
+discovery and diagnosis histories.
+Unfortunately, there is no conceivable way to solve these problems.
+We believe the bugs in our study provide a representative sample of the 
+well-documented fixed
+performance bugs that are reported by users in representative applications.

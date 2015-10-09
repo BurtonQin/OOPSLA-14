@@ -1,0 +1,122 @@
+\section{Related Work}
+
+\subsection{Empirical study of performance bugs}
+Recently, several empirical studies have been conducted for real-world
+performance bugs. They all have different focuses.
+Some of them \cite{Zaman2012MSR} compare the
+qualitative difference between performance bugs and non-performance bugs 
+across impact, context, fix and fix validation; some of them
+\cite{PerfBug} look at 
+how performance bugs are introduced, 
+how performance bugs manifest, 
+and how performance bugs are fixed; 
+some of them
+\cite{SmartphoneStudy} focuses on performance bugs in smart-phone applications.
+Different from all previous studies, our study aims to provide guidance
+to performance problem diagnosis, and hence focuses on how performance
+problems are noticed and reported by end users. 
+
+A most recent study conducted by Nistor et al. \cite{Nistor2013MSR} is similar
+with our bug characteristics study (Section \ref{sec:study}) 
+in that it also finds that performance problems take long time
+to get diagnosed and the help from profilers is very limited. However, the
+similarity ends here. Different from
+our study, this recent work did not study how performance problems are
+observed and reported by end users. Its bug set includes many problems
+that are not perceived by end users and are instead discovered through 
+developers' code inspection, which is not the focus of our study. In short,
+it does not aim to guide automated diagnosis of performance problems, 
+and is hence different
+from our work.
+
+\subsection{Performance problem diagnosis}
+Diagnosis tools aim to identify root causes and suggest fix strategies when 
+software failures happen. Tools have been proposed to diagnose certain
+type of performance problems.
+
+X-ray~\cite{Attariyan:2012:XAR:2387880.2387910} aims to diagnose performance 
+problems caused by end users. The root causes discussed in the X-ray paper are 
+unexpected inputs or configurations that can be changed by end users. 
+X-ray pin-points the inputs or configuration entries that are most 
+responsible for a performance problem, and help users to solve the 
+performance issues by themselves (by changing the inputs or configuration
+entries). 
+The main technique used in X-ray is called performance summarization, which 
+first attributes a performance 
+cost to each basic block, and then estimates the possibility that each block 
+will be executed 
+due to certain input entry, and finally ranks all input entries.
+Techniques discussed in our paper aim to help developers. We want to provide 
+information to help developers change inefficient code and fix performance bugs.
+IntroPerf~\cite{IntroPerf} automatically infers the latency of user-level and
+kernel-level function calls based on operating system tracers.
+StackMine~\cite{Han:2012:PDL:2337223.2337241} automatically identifies certain
+call-stack patterns that are correlated with performance problems of 
+event handlers.
+\citet{TaoAsplos2014} automatically processes detailed system traces to 
+help developers understand how performance impact propagates across system
+components, and what are the performance causality relationships among
+components and functions.
+All these diagnosis tools are very useful in practice, but have different
+focus from our work. They
+do not aim to identify source-code fine-granularity 
+root causes of performance problems reported by end users.
+
+Many techniques been proposed to diagnose 
+performance problems in distributed systems
+\cite{Sambasivan:2011:DPC:1972457.1972463,Fonseca:2010:ETC:1863133.1863143,Kasick:2010:BPD:1855511.1855515,Xu:2009:DLS:1629575.1629587,aguilera03}.
+These techniques often focus on identifying the faulty components/nodes or 
+faulty interactions that lead to performance problems, which are different from our work.
+
+\subsection{Performance bug detection}
+Many performance bug detection tools have been proposed recently.
+They each aims to find a specific type of hidden
+performance bugs before the bugs lead to performance problems observed by
+end users.
+
+Some tools~\cite{Dufour:2008:STC:1453101.1453111, Xu:2009:GFP:1542476.1542523, Xu:2010:DIC:1806596.1806616}
+detect runtime bloat, a common performance problem in object-oriented 
+applications.
+\citet{Xu:2010:FLD:1806596.1806617} targets 
+low-utility data structures with unbalanced costs and benefits.
+\citet{PerfBug} employ rule-based methods to detect performance bugs that
+violate efficiency rules that have been violated before.
+\citet{ORMPatterns} detect database related performance anti-patterns,
+like fetching excessive data from database and issuing queries that could have
+been aggregated.
+WAIT~\cite{Altman:2010:PAI:1869459.1869519} focuses on bugs that
+block the application from making progress.
+\citet{Liu:2011:SPD:2048066.2048070} build two tools to attack the false 
+sharing problem in multi-threaded software.
+There are also tools that detect inefficient nested loops \cite{Alabama}
+and workload-dependent
+loops \cite{xiao13:context}.
+%\citet{RegressCauses} discover performance regression using hardware
+%counters and machine learning methods, and propose
+%code change patterns that are likely responsible for the 
+%discovered performance regression.
+
+These bug-detection tools have different focus from our work. 
+They do not focus on diagnosing general performance problems reported by 
+end users. Most of them are also not 
+guided by performance symptoms.
+
+%\subsection{Profilers}
+%Profilers are widely used by developers to diagnose performance problems. 
+%For example, gprof~\cite{gprof} and oprofile~\cite{oprofile} are both
+%widely used profilers.
+%To use gprof, programs need to be compiled by using ``-pg'' option. 
+%For each function call, gprof will record its caller. For each function, 
+%gprof will record how many times it is called. 
+%At run time, gprof will look at program counter each 0.01 second to record 
+%which function is executing. 
+%gprof provides two types of profiling results: 
+%flat profile, which will rank each function based on how much time spent in 
+%them, 
+%and call graph, which shows how much time is spent in each function and their 
+%children. 
+
+%Oprofile does not instrument programs. 
+%Oprofile asks users to specify hardware events and sampling frequency. 
+%Every time the specified number of events occur, oprofile will record program counter value and call stack. 
+%Similar to gprof, oprofile can also provide flat profile and call graph information. 

@@ -1,0 +1,167 @@
+%% paper.tex
+
+\documentclass[10pt,final]{sigplanconf}
+
+% standard LaTeX packages
+%\usepackage{changebar}
+\usepackage{balance}
+\usepackage{alltt}
+\usepackage{amsmath}
+\usepackage{balance}
+\usepackage{booktabs}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{boxedminipage}
+\usepackage{hyperref}
+\usepackage{nicefrac}
+\usepackage{subfig}
+\usepackage{xcolor}
+\usepackage{setspace}
+\usepackage{xspace}
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{amsfonts} 
+\usepackage{blindtext}
+\usepackage{chngpage}
+\usepackage{listings}
+\usepackage{mathtools}
+
+\usepackage[linesnumbered, vlined, ruled]{algorithm2e}
+% font selection
+%\usepackage{courier}
+%\usepackage[scaled]{helvet}
+\usepackage{mathptmx}
+\usepackage{times}
+
+% custom packages for this paper
+%\usepackage{double-blind}
+\usepackage{shared-affiliation}
+
+\captionsetup{format=default, font=bf}
+\newcounter{copyrightbox}
+
+%\def\yes{$\color{green!50!black} \checkmark$}
+%\def\no{\color{red} X}
+\newcommand{\NotUse}[0]{-}
+
+\newcommand{\usefulp}{40\xspace}
+\newcommand{\usefulsp}{25\xspace}
+\newcommand{\newbug}{61\xspace}
+\newcommand{\newconfirm}{1\xspace}
+\newcommand{\newrepeated}{0\xspace}
+\newcommand{\mailto}[1]{\href{mailto:#1}{#1}}
+\newcommand{\comment}[1]{{}}
+
+%% taken from unknown.sty
+\newcommand{\disregard}[1]{}
+
+
+%\makeatletter
+%\def\@copyrightspace{\relax}
+%\makeatother
+
+\sloppy
+\begin{document}
+
+\special{papersize=8.5in,11in}
+\setlength{\pdfpageheight}{\paperheight}
+\setlength{\pdfpagewidth}{\paperwidth}
+
+\conferenceinfo{OOPSLA~'14}{October 20--24, 2014, Portland, OR, USA} 
+\copyrightyear{2014} 
+\copyrightdata{978-1-4503-2585-1/14/10} 
+\doi{2660193.2660234} 
+
+\title{
+  Statistical Debugging for Real-World Performance Problems
+}
+
+%\numberofauthors{2}
+\authorinfo{Linhai Song \and Shan Lu\thanks{Shan is now with University of Chicago.}}
+           {University of Wisconsin--Madison}
+           {\{songlh, shanlu\}@cs.wisc.edu}
+
+\maketitle
+\begin{abstract}
+\input{section/abstract}
+\end{abstract}
+
+\category{D.2.4}{Software Engineering}{Software/Program Verification -- statistical methods}
+\category{D.2.5}{Software Engineering}{Testing and Debugging -- debugging aids}
+
+
+\terms
+Languages, Measurement, Performance, Reliability
+
+\keywords
+empirical study; performance diagnosis; performance bugs; statistical debugging
+
+\input{section/0_intro}
+%\input{section/1_back}
+\input{section/3_study}
+\input{section/4_cbi}
+\input{section/6_LBR}
+\input{section/7_related}
+\input{section/8_con}
+
+
+%%\balance
+%\begin{spacing}{0.65}
+
+\balance
+{
+\bibliographystyle{abbrvnat}
+\bibliography{debug,perf} 
+}
+%\end{spacing}
+\end{document}
+
+
+\lstset{
+  basicstyle=\tiny,
+  columns=fullflexible,
+  numbersep=5pt,
+  numberstyle=\scriptsize,
+  showstringspaces=false,
+  escapeinside={/*@}{@*/},
+  belowcaptionskip=1\baselineskip,
+  language=C,
+  showstringspaces=false,
+  keywordstyle=\bfseries,
+  commentstyle=\itshape,
+}
+
+\tikzset{%
+  node distance=1em,
+  >=stealth,
+  cfg/.style={%
+    minimum width=2em,
+    minimum height=1em,
+    rounded corners=2pt,
+    draw=black,
+  },
+  protected/.style={%
+    cfg,
+    fill=black!20,
+  },
+  ghost/.style={%
+    minimum width=0,
+    minimum height=0,
+    shape=coordinate,
+  },
+  mutex/.style={
+    midway,
+  },
+}
+
+\urlstyle{sf}
+
+\pdfpagewidth=8.5in
+\pdfpageheight=11in
+
+% Local variables:
+% TeX-PDF-mode: t
+% TeX-master: t
+% End:
+
+% LocalWords:  Crug cci

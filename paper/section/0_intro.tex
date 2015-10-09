@@ -1,0 +1,232 @@
+\section{Introduction}
+%lack of failure point
+%lack of failure specification
+%lack of diagnosis tool support
+
+
+
+\subsection{Motivation}
+
+
+
+
+Implementation or design defects in software can lead to inefficient 
+computation, causing unnecessary performance losses at run time.
+%severe performance degradation, and significant energy waste.
+Previous studies have shown that this type of performance-related software
+defects\footnote{We will refer to these defects as performance bugs
+or performance problems interchangeably following previous work in this 
+area \cite{PerfBug,Alabama,perf.fse10}.} 
+widely exist in real-world
+\cite{s2e,PerfBug,perf.fse10,rily.perftest,perfantipattern}.
+They are difficult for developers to avoid due to the lack of 
+performance documentation of APIs and the quickly changing workload of
+modern software \cite{PerfBug}.
+A lot of performance bugs escape the in-house testing and manifest during
+production runs, causing severe performance degradation and huge energy 
+waste in the field \cite{PerfBug}. Making things worse, the negative impact of 
+these performance problems is getting increasingly important,
+with the increasing complexity of modern software and workload,
+the meager increases of single-core hardware performance, and the 
+pressing energy concerns.
+Effective techniques to diagnose real-world performance problems 
+are sorely needed.
+
+
+
+The state of practice of performance diagnosis is preliminary.
+The most commonly used and often the only available tool during
+diagnosis is profiler \cite{oprofile,gprof}. 
+Although useful, profilers are far from sufficient.
+They can tell where
+computation resources are spent, but not where or \textit{why} computation 
+resources are 
+\textit{wasted}.
+As a result, they still demand a huge amount of manual effort to figure
+out the root cause\footnote{In this paper, root cause refers to a static code
+region that can cause inefficient execution.} of performance problems.
+
+
+\begin{figure}[h]
+\centering
+\lstinputlisting[basicstyle=\ttfamily\footnotesize]{figures/MySQL26527.c}
+\caption{A real-world performance bug in MySQL (the `-' and `+' demonstrate the patch)}
+\label{fig:MySQLintro}
+\end{figure}
+
+
+Figure \ref{fig:MySQLintro}
+shows a real-world performance problem in MySQL. MySQL users noticed 
+surprisingly poor performance for queries on certain type of tables.
+Profiling could not
+provide any useful information, as the top ranked
+functions are either low-level library functions, like 
+\texttt{pthread\_getspecific} and \texttt{pthread\_mutex\_lock}, or simple 
+utility
+functions, like \texttt{ha\_key\_cmp} (key comparison). 
+After thorough code inspection, developers finally figured
+out that the problem is in function \texttt{start\_bulk\_insert}, which does
+not even get ranked by the profiler.
+The developer who implemented this
+function assumed that parameter-0 indicates no need of cache, while the 
+developers who 
+wrote the caller functions thought that parameter-0 indicates the allocation of a
+large buffer. This mis-communication led to unexpected cache-less execution, 
+which is extremely slow. The final patch simply removes the unnecessary
+branch in Figure \ref{fig:MySQLintro}, but it took developers a lot of 
+effort to figure out. 
+
+Most recently, non-profiling tools have been proposed to help diagnose certain
+type of performance problems. For example, X-Ray can help pin-point the 
+configuration entry or input entry that is most responsible for poor 
+performance \cite{Attariyan:2012:XAR:2387880.2387910}; trace analysis
+techniques have been proposed to figure out the performance-causality 
+relationship among system events and components 
+\cite{TaoAsplos2014,amertrace}. Although promising, these tools are still
+far from automatically identifying
+source-code level root causes and helping figure out
+source-code level fix
+strategies for general performance problems.
+
+Many automated performance-bug detection tools have been proposed recently,
+but they are ill suited for performance diagnosis.
+Each of these tools detects one specific type of performance bugs,
+such as inefficient nested loops \cite{Alabama}, under-utilized data 
+structures \cite{Xu:2010:FLD:1806596.1806617}, and temporary object bloat 
+\citep{Dufour:2008:STC:1453101.1453111, Xu:2009:GFP:1542476.1542523, Xu:2010:DIC:1806596.1806616},
+through 
+static or dynamic program analysis. They are not designed to cover a wide variety
+of performance bugs. They are also not designed to focus on any specific
+performance symptom reported by end users, and would inevitably lead to false 
+positives when
+used for failure diagnosis.
+
+
+\subsection{Can we learn from functional failure diagnosis?}
+\label{sec:canwe}
+Automated failure diagnosis has been studied for decades for functional 
+bugs\footnote{Any software defects that lead to functional misbehavior,
+such as incorrect outputs, crashes, and hangs. They include
+semantic bugs, memory bugs, concurrency bugs, and others.}. 
+Many useful and generic techniques
+\cite{horwitz, xiangyu.ase05, delta,liblit03,CCI,tarantula1} have been proposed.
+Among these techniques,
+statistical debugging is one of the most effective
+\cite{liblit03,CCI,tarantula1}. 
+Specifically, statistical debugging
+collects program predicates, such as
+whether a branch is taken, during both success runs and failure runs, and
+then uses
+statistical models to automatically identify predicates that are most
+correlated with a failure, referred to as failure predictors.
+It would be nice if statistical debugging can also work for diagnosing
+performance problems.
+
+Whether statistical debugging is useful for performance bugs is 
+still an open question. Whether it is \textit{feasible} to apply
+the statistical debugging technique to performance problems is unclear, 
+not to mention 
+\textit{how} to apply the technique.
+
+\paragraph{Is it feasible to apply statistical debugging?}
+The prerequisites for statistical debugging are two sets of inputs, one
+leading to success runs, referred to as \emph{good inputs}, and one leading to 
+failure runs, referred to as \emph{bad inputs}.
+They are easy to obtain for functional bugs, but may be difficult for some
+performance bugs.
+
+For functional bugs, failure runs are often easy to tell from success runs 
+due to clear-cut failure symptoms, such as 
+crashes, assertion violations, incorrect outputs, and hangs. Consequently, 
+it is straightforward to collect good and bad inputs. 
+In the past, the main research challenge has been generating good inputs and 
+bad inputs
+that are similar with each other \cite{delta}, which can improve the diagnosis
+quality.
+
+For some performance bugs, failure runs could be difficult to distinguish
+from success runs, because execution slowness can be
+caused by either large workload or manifestation of performance bugs.
+
+Empirical study is needed to understand whether statistical debugging is feasible
+for real-world performance bugs and, if feasible, how to obtain good inputs and
+bad inputs.
+
+\paragraph{How to conduct effective statistical debugging?}
+The effectiveness of statistical debugging is not guaranteed by the
+availability of good and bad inputs. Instead, it requires careful design
+of predicates and statistical models that are suitable for the problem
+under diagnosis.
+
+Different predicates and
+statistical models have been designed to target different types of common
+functional bugs. 
+For example, branch predicates and function-return predicates have been
+designed to diagnose sequential bugs~\cite{liblit03,liblit05}; 
+interleaving-related predicates have been designed to diagnose concurrency bugs
+\cite{CCI,joy.asplos13}; $\Delta$LDA statistical model \cite{Delta-LDA} has
+been used to locate failure root causes that have weak signals.
+What type of predicates and statistical models, if any, would work well
+for performance diagnosis is still
+an open question.
+
+\subsection{Contributions}
+This paper presents a thorough study of statistical debugging for real-world 
+performance 
+problems. Specifically, it makes the following contributions.
+
+\paragraph{An empirical study of the diagnosis process of real-world 
+user-reported performance problems}  
+To understand whether it is feasible to apply statistical debugging for
+real-world performance problems, we study how users notice and report
+performance problems based
+on 65 real-world user-reported performance
+problems in five representative open-source applications (Apache, Chrome, 
+GCC, Mozilla, and MySQL).
+We find that statistical debugging is feasible for most
+user-reported performance problems in our study, because
+(1) users notice the symptoms of most 
+performance problems through a comparison-based approach 
+(more than 80\% of the cases), and
+(2) many users report performance bugs together with two sets of inputs that
+look similar with each other but lead to %significantly different performance
+huge performance difference
+(about 60\% of the cases).
+Furthermore, we also find that performance diagnosis is time consuming,
+taking more than 100 days on average,
+and lacking good tool support, taking more than 100 days on average even after 
+profiling. 
+Although our work is far from a full-blown study of all real-world
+user-reported performance bugs, its
+findings still provide guidance and motivation
+for statistical debugging on performance problems. The details are 
+in Section \ref{sec:study}.
+
+\paragraph{A thorough study of statistical in-house performance diagnosis}
+To understand how to conduct effective statistical debugging for real-world
+performance problems, we set up a statistical debugging framework and evaluate
+a set of design points for user-reported performance problems. These
+design points include
+three representative predicates (branches, function returns, and scalar-pairs)
+and two different types of statistical models. They are evaluated through 
+experiments on 
+20 user-reported performance problems and manual inspections on
+all the 65 user-reported performance problems collected in our empirical study. 
+Our evaluation
+demonstrates that, when the right design points are chosen, statistical
+debugging can effectively provide root cause and fix strategy information
+for most real-world performance problems,
+improving the state of the art of performance diagnosis. 
+More details are presented
+in Section \ref{sec:inhouse}.
+
+\paragraph{A thorough study of sampling-based production-run performance diagnosis}
+We apply both hardware-based and software-based sampling techniques to
+lower the overhead of statistical performance diagnosis.
+Our evaluation using 20 real-world performance problems shows that
+sampling does not degrade the diagnosis capability, while effectively
+lowering the overhead to below 10\%. We also find that the special
+nature of loop-related performance problems allows the sampling approach
+to lower run-time overhead without extending the diagnosis latency,
+a feat that is almost impossible to achieve for sampling-based
+functional-bug failure diagnosis. More details are presented in Section \ref{sec:lbr}.

@@ -1,0 +1,408 @@
+\section{Production-run statistical debugging}
+\label{sec:lbr}
+In-house performance diagnosis discussed in Section \ref{sec:inhouse} assumes
+that users file a detailed bug report and developers can repeat the 
+performance problem at the development site. Unfortunately, this does not always
+happen. In many cases, production-run users only send 
+back a simple automatically generated report, claiming that a failure has 
+happened, together with a small amount
+of automatically collected run-time information. 
+
+The key challenge of diagnosing production-run failures is how to satisfy the
+following three requirements simultaneously:
+
+\begin{enumerate}
+\item Low run-time overhead. 
+The diagnosis tool will not be accepted by end users, if it incurs too much
+slow down to each production run.
+
+\item High diagnosis capability. 
+The diagnosis tool is useful to developers only when it can accurately 
+provide failure root cause information.
+
+\item Short diagnosis latency. 
+Short diagnosis latency can speed up patch design and improve system
+availability.
+\end{enumerate}
+
+This section discusses this issue
+in the context of performance bugs.
+
+\subsection{Design}
+The state of the art on production-run
+functional bug diagnosis \citep{liblit03,liblit05,CCI,joy.asplos13} proposes
+to satisfy the first two requirements (i.e., low overhead and high capability)
+by combining  
+\textit{sampling} techniques with
+statistical debugging.
+By randomly sampling predicates at run time, the overhead can be lowered;
+by processing predicates collected from many failure and success runs
+together, the diagnosis capability can be maintained for the diagnosis of most
+functional bugs \citep{liblit03,liblit05,CCI,joy.asplos13}.
+The only limitation is that sampling could affect diagnosis latency 
+--- the same failure needs to occur for many times until sufficient information
+can be sampled. This is especially a problem for software that is not widely
+deployed and bugs that do not manifest frequently.
+We plan to follow this approach and apply it for production-run performance
+diagnosis.
+
+Different from production-run functional failure diagnosis
+\citep{liblit03,liblit05,CCI,joy.asplos13}, production-run performance diagnosis
+needs to have a slightly different failure-reporting process.
+Traditional functional failure diagnosis assumes that a profile of
+sampled predicates will be collected after
+every run. This profile will be marked as
+\textit{failure} when software encounters typical failure symptoms such as 
+crashes, error messages, and so on; the profile will be marked
+as \textit{success} otherwise. The same process does not apply to performance
+failures, because most performance failures are observed through
+comparisons across runs, as discussed in Section \ref{sec:study}. 
+
+To adapt to the unique way that performance problems are observed, we 
+expect that users will explicitly mark a profile as \textit{success}, 
+\textit{failure}, or \textit{do-not-care} (the default marking), when they 
+participate in production-run performance diagnosis. For most performance 
+problems (i.e., those problems observed through comparisons), do-not-care
+profiles will be ignored during statistical debugging. For performance problems
+that have non-comparison-based symptoms (i.e. application freeze), all
+profiles collected from production runs will be considered during statistical
+debugging.
+
+One issue not considered in this paper is \textit{failure bucketing}. That is, 
+how to separate failure (or success) profiles related to different software 
+defects. This problem is already handled by some statistical models 
+\citep{liblit03,liblit05} that can discover multiple failure predictors
+corresponding to different root causes mixed in one
+profile pool, as well as some failure bucketing techniques
+\citep{hunt.sosp09}
+that can roughly cluster profiles based on likely root causes.
+Of course, performance diagnosis may bring new challenges to these
+existing techniques. We leave this for future research.
+
+\subsection{Experimental evaluation}
+
+Our evaluation will aim to answer two key questions:
+
+\begin{enumerate}
+\item Can sampling lower the overhead and maintain the capability of
+performance-related statistical debugging? A positive answer would indicate
+a promising approach to production-run performance diagnosis.
+
+\item What is the impact of sampling to diagnosis latency?
+Traditionally, if we use 1 out of 100 sampling rate, we need hundreds of failure
+runs to achieve good diagnosis results. Since many performance bugs lead
+to repeated occurrences of an event at run time, it is possible that fewer
+failure runs would be sufficient for performance diagnosis. If this heuristic
+is confirmed, we will have much shorter diagnosis latency than traditional
+sampling-based failure diagnosis for functional bugs.
+\end{enumerate}
+
+
+\subsubsection{Methodology}
+\paragraph{Benchmarks and inputs}
+We reuse the same set of benchmarks shown in Table~\ref{tab:app_bug}. 
+We also use the same methodology to generate inputs and drive success/failure
+runs. The only difference is that for the four performance problems that users
+do not report any good inputs, we will use completely random inputs to produce
+success-run profiles.
+
+\paragraph{Tool implementation}
+To sample return predicates, we directly use CBI \cite{liblit03,liblit05}.
+CBI instruments program source code to conduct sampling.
+Specifically, CBI instrumentation keeps a global countdown to decide how many 
+predicates can be skipped before next sample. 
+When a predicate is sampled, 
+the global countdown is reset to a new value based on a geometric distribution 
+whose mean value is the inverse of the sampling rate. 
+
+To sample branch predicates, we directly use CBI for benchmarks written in 
+C. For all MySQL and some Mozilla benchmarks that are written in C++, since
+CBI does not work for C++ code, we conduct sampling through
+hardware performance counters following the
+methodology described in previous work \cite{joy.asplos13}.
+Specifically, hardware performance
+counters are configured so that an interrupt will be triggered every $N$
+occurrences of a particular performance event (e.g, branch-taken event), with no changes to the program.
+
+\paragraph{Metrics and settings}
+We will evaluate all three key metrics for failure diagnosis:
+(1) run-time overhead, measured by the slow down caused by information
+collection at every run;
+(2) diagnosis capability,
+measured by whether top ranked failure predictors are 
+related to failure root causes, as discussed in 
+Section~\ref{sec:inhouse_results}.
+(3) diagnosis latency,
+measured by how many failure runs are needed 
+to complete the diagnosis. 
+
+By default, we keep the sampling rate at roughly
+1 out of 10000
+and use samples
+collected from 1000 failure runs and 1000 success runs for failure diagnosis. 
+
+In addition to experiments under the default setting, we also evaluate the 
+impact of different numbers of failure/success runs, ranging from 10 to 1000,
+while keeping the sampling rate fixed, and evaluate the impact of different
+sampling rates, ranging from roughly 1 out of 100 to roughly 1 out of 100000,
+while keeping the number of failure/success runs fixed.
+Particularly, we will try using only 10 success runs
+and 10 failure runs, under the default sampling rate, to see if we can achieve 
+good diagnosis capability,
+low diagnosis latency, and low run-time overhead \emph{simultaneously}. 
+
+Since sampling is random, we have repeated our evaluation for several rounds to confirm that all
+the presented results are stable.
+
+For every performance problem benchmark, the results presented below are 
+obtained under the
+combination of predicate and statistical model that is shown to be (most) 
+effective
+in Table \ref{tab:in-house} (Section \ref{sec:inhouse}).
+That is, basic model plus branch predicates are used for seven benchmarks;
+basic model plus return predicates are used for one benchmark;
+$\Delta$LDA model plus branch$_{\text{loop}}$ predicates are used for the remaining twelve  
+benchmarks, including GCC12322.
+Since sampling can only lower overhead and cannot
+improve the diagnosis capability, those combinations that fail to deliver
+useful diagnosis results in Table \ref{tab:in-house} still fail to deliver
+useful diagnosis results in our sampling-based evaluation.
+
+\subsubsection{Results}
+
+\begin{table}[h!]
+  \centering
+  \small
+  \newcommand{\Yes}[1]{\checkmark{}$_#1$}
+  \newcommand{\No}[0]{-}
+  \begin{tabular}{lccccc}
+    \toprule     
+   {\bf BugID}             &  \multicolumn{4}{c}{ Diagnosis Capability}   & Overhead \\
+                           
+    \cmidrule(lr){2-5}
+    (\# of runs)                 &  (10)     &   (100)    &    (500)    & (1000)     &   per run\\
+    \midrule 
+
+    Mozilla258793                & \No       & \Yes{1}    &  \Yes{1}    & \Yes{1}    &   2.39\%        \\
+    Mozilla299742                & \No       & \No        &  \Yes{1}    & \Yes{1}    &   4.27\%        \\
+    Mozilla347306                & \Yes{1}   & \Yes{1}    &  \Yes{1}    & \Yes{1}    &   1.42\%  \\
+    Mozilla416628                & \Yes{1}   & \Yes{1}    &  \Yes{1}    & \Yes{1}    &   2.03\%   \\
+    \midrule
+    MySQL15811                   & \Yes{1}   & \Yes{1}    & \Yes{1}     & \Yes{1}    &  2.25\% \\
+    MySQL26527                   & \No       & \No        & \Yes{1}     & \Yes{1}    &  6.05\% \\
+    MySQL27287                   & \Yes{1}   & \Yes{1}    & \Yes{1}     & \Yes{1}    &  3.02\% \\
+    MySQL40337                   & \No       & \Yes{1}    & \Yes{1}     & \Yes{1}    &  2.69\% \\
+    MySQL42649                   & \No       & \No        & \Yes{2}     & \Yes{1}    &  6.10\% \\
+    MySQL44723                   & \No       & \Yes{1}    & \Yes{1}     & \Yes{1}    &  3.16\% \\
+    \midrule
+    Apache3278                   & \No       & \No        &  \No        & \No        &  0.23\%         \\
+    Apache34464                  & \Yes{3}   & \Yes{3}    & \Yes{3}     & \Yes{3}    &  0.18\%     \\
+    Apache47223                  & \Yes{1}   & \Yes{1}    & \Yes{1}     & \Yes{1}    &  0.13\%         \\
+    Apache32546                  & \Yes{1}   & \Yes{1}    & \Yes{1}     & \Yes{1}    &  0.38\%     \\
+    \midrule
+    GCC1687                      & \Yes{1}   & \Yes{1}    &  \Yes{1}    & \Yes{1}    &  0.80\%  \\
+    GCC8805                      & \Yes{4}   & \Yes{4}    &  \Yes{4}    & \Yes{4}    &  1.81\%  \\
+    GCC15209                     & \No       & \No        &  \Yes{1}    & \Yes{1}    &  2.37\%        \\
+    GCC21430                     & \Yes{1}   & \Yes{1}    &  \Yes{1}    & \Yes{1}    &  7.55\%  \\
+    GCC46401                     & \Yes{2}   & \Yes{2}    &  \Yes{2}    & \Yes{2}    &  2.91\%  \\
+    GCC12322                     & \No       & \No        &  \No        & \No        &  2.33\%  \\
+
+    \bottomrule
+   \end{tabular}
+  \nocaptionrule
+  \caption{Run-time overhead and diagnosis capability evaluated with the default sampling rate (1 out of 10000); 10, 100, 500, 1000 represents the different numbers of success/failure runs used for diagnosis.}
+  \label{tab:LBR}
+\end{table}
+
+
+
+\begin{table*}
+  \centering
+  \footnotesize
+  \newcommand{\Yes}[1]{\checkmark{}$_#1$}
+  \newcommand{\No}[0]{-}
+  \begin{tabular}{lcccccccccccc}
+    \toprule     
+   {\bf BugID} & \multicolumn{4}{c}{ Diagnosis Capability} &\multicolumn{4}{c}{Overhead} & \multicolumn{4}{c}{Avg. \# of sampled predicates} \\
+                           
+    \cmidrule(lr){2-5}
+    \cmidrule(lr){6-9}
+    \cmidrule(lr){10-13}
+    (sampling rate)  &($\frac{1}{10^2}$)&($\frac{1}{10^3}$)&($\frac{1}{10^4}$)& ($\frac{1}{10^5}$)  &($\frac{1}{10^2}$) &($\frac{1}{10^3}$)&($\frac{1}{10^4}$)  & ($\frac{1}{10^5}$)  & ($\frac{1}{10^2}$)  & ($\frac{1}{10^3}$)    & ($\frac{1}{10^4}$)   &  ($\frac{1}{10^5}$)         \\
+    \midrule 
+
+    Mozilla258793    &  *    & \Yes{1}  & \Yes{1}   & \Yes{1}     & *       & 24.36\% &  2.39\%     &  1.84\%     & *         & $1.42*10^6$   & $1.45*10^5$   &  $1.49*10^4$           \\
+    Mozilla299742    &  *    & \Yes{1}  & \Yes{1}   & \Yes{2}     & *       & 30.84\% &  4.27\%     &  4.16\%     & *         & $1.87*10^5$   & $1.77*10^4$   &  $1.82*10^3$\\
+    Mozilla347306    & \Yes{1} & \Yes{1}  & \Yes{1}   & \Yes{1}     & 69.73\%   & 8.27\%  &  1.42\%     &  0.56\%     &$7.13*10^6$  & $7.13*10^5$   & $7.13*10^4$   &  $7.13*10^3$\\
+    Mozilla411722    & \Yes{1} & \Yes{1}  & \Yes{1}   & \Yes{1}     & 24.64\%   & 4.31\%  &  2.03\%     &  1.36\%     &$8.18*10^5$  & $8.18*10^4$   & $8.17*10^3$   &  816.56  \\
+    \midrule
+    MySQL15811       & *     & \Yes{1}  & \Yes{1}   & \Yes{1}     & *       & 7.65\%  &  2.25\%     &  1.53\%     & *         &$3.67*10^5$    &  $1.67*10^5$  & $1.66*10^4$          \\
+    MySQL26527       & *     & \Yes{1}  & \Yes{1}   & \No         & *       & 6.40\%  &  6.05\%     &  4.53\%     & *         &$3.23*10^3$    &  921.41       & 92.60 \\
+    MySQL27287       & *     & \Yes{1}  & \Yes{1}   & \Yes{1}     & *       & 4.63\%  &  3.02\%     &  0.61\%     & *         &$2.52*10^6$    &  $1.15*10^6$  & $1.19*10^5$\\
+    MySQL40337       & *     & \Yes{1}  & \Yes{1}   & \No         & *       & 10.88\% &  2.69\%     &  2.28\%     & *         &$5.10*10^6$    &  $1.66*10^6$  & $1.42*10^5$\\
+    MySQL42649       & *     & \Yes{1}  & \Yes{1}   & \No         & *       & 8.28\%  &  6.10\%     &  3.93\%     & *         &$7.25*10^3$    &  $1.14*10^3$  &  128.53\\
+    MySQL44723       & *     & \Yes{1}  & \Yes{1}   & \Yes{1}     & *       & 7.10\%  &  3.16\%     &  2.24\%     & *         &$3.23*10^5$    &  $1.83*10^5$  & $1.46*10^4$\\
+    \midrule
+    Apache3278       & \Yes{1} & \No      & \No       & \No         & 0.23\%    & 0.23\%  &   0.23\%    &  0.23\%     & 0.21        & 0.01          & 0             & 0\\
+    Apache34464      & \Yes{3} & \Yes{3}  & \Yes{3}   & \Yes{3}     & 29.45\%   & 2.62\%  &   0.18\%    &  0.04\%     & $2.50*10^7$ &$2.50*10^6$    & $2.49*10^5$   &$2.50*10^4$\\
+    Apache47223      & \Yes{1} & \Yes{1}  & \Yes{1}   & \Yes{1}     & 12.58\%   & 1.28\%  &   0.13\%    &  0.12\%     & $6.27*10^6$ &$6.26*10^5$    & $6.27*10^4$   &$6.27*10^3$\\
+    Apache32546      & \Yes{1} & \Yes{1}  & \Yes{1}   & \Yes{1}     & 0.24\%    & 0.39\%  &   0.38\%    &  0.40\%     & $9.75*10^3$ &977.72         & 99.01         &9.5\\
+    \midrule
+    GCC1687          & \Yes{1} & \Yes{1}  & \Yes{1}   & \Yes{1}     & 47.30\%   & 5.34\%  &  0.80\%     &   0.43\%    & $3.18*10^7$ &$3.18*10^6$    & $3.18*10^5$   &$3.17*10^4$\\
+    GCC8805          & \Yes{4} & \Yes{4}  & \Yes{4}   & \Yes{4}     & 50.92\%   & 7.33\%  &  1.81\%     &   1.05\%    & $1.63*10^7$ &$1.63*10^6$    & $1.63*10^5$   &$1.63*10^4$\\
+    GCC15209         & \Yes{1} & \Yes{2}  & \Yes{1}   & \Yes{2}     & 41.06\%   & 8.43\%  &  2.37\%     &   1.27\%    & $3.35*10^4$ &$3.35*10^3$    & 334.72        &33.64\\
+    GCC21430         & \Yes{1} & \Yes{1}  & \Yes{1}   & \Yes{1}     & 64.98\%   & 13.68\% &  7.55\%     &   5.07\%    & $9.15*10^7$ &$9.15*10^6$    & $9.15*10^5$   &$9.15*10^4$\\
+    GCC46401         & \Yes{2} & \Yes{2}  & \Yes{2}   & \Yes{2}     & 88.97\%   & 13.04\% &  2.91\%     &   0.46\%    & $8.88*10^7$ &$8.88*10^6$    & $8.88*10^5$   &$8.88*10^4$\\
+    GCC12322         & \No     & \No      & \No       & \No         & 15.55\%   & 2.33\%  &  2.33\%     &   0.56\%    & $9.97*10^7$ &$9.97*10^6$    & $9.97*10^5$   &$9.97*10^4$\\
+
+    \bottomrule
+   \end{tabular}
+  \nocaptionrule
+  \caption{Diagnosis capability, overhead, and average number of samples in each run under different sampling rates by using 1000 success/failure runs 
+  (*: no results are available, because
+   hardware-based sampling cannot be as frequent as $1/100$ and software-based
+   CBI sampling does not apply for these C++ benchmarks.
+   )}
+  \label{tab:rate}
+\end{table*}
+
+
+\paragraph{Run-time overhead}
+As shown in Table \ref{tab:LBR}, the run-time overhead is small
+under the default sampling rate (i.e., 1 out of 10000).
+It is below 5\% in all but three cases, and is always below 8\%.
+
+As expected, the overhead is sensitive with the sampling rate. As shown in
+Table~\ref{tab:rate}, it can be further lowered to be mostly below 2\% under
+the $\frac{1}{10^{5}}$ sampling rate, and could be as large as over 40\% under
+the $\frac{1}{100}$ sampling rate.
+
+
+\paragraph{Diagnosis capability}
+As shown by Table \ref{tab:LBR}, with 1000 success runs
+and 1000 failure runs, sampling did very little damage to
+the diagnosis capability of statistical debugging. 
+Apache\#3278 is the only one, among all benchmarks, where 
+failure diagnosis fails under this sampling setting.
+For all other benchmarks, the
+rankings of the ideal failure predictors remain the same as those 
+without sampling in Table \ref{tab:in-house}.
+
+Also as expected, the diagnosis capability would decrease under sparser
+sampling or fewer failure/success runs. As shown in Table \ref{tab:rate},
+under the default setting of 1000 success/failure runs, the diagnosis capability
+is roughly the same between $\frac{1}{10^{3}}$ sampling rate and 
+$\frac{1}{10^{4}}$ sampling
+rate, but would drop with $\frac{1}{10^{5}}$ sampling rate. 
+Four benchmarks that can be diagnosed 
+with more frequent sampling cannot be diagnosed with
+$\frac{1}{10^{5}}$ sampling rate.
+Clearly, more
+runs will be needed to restore the diagnosis capability with a lower
+sampling rate.
+
+\paragraph{Diagnosis latency}
+Diagnosis latency versus run-time overhead and diagnosis capability 
+is a fundamental trade-off facing
+sampling-based statistical debugging for functional bugs \cite{liblit03,liblit05,CCI}.
+With sampling, intuitively, more failure runs are needed
+to collect sufficient diagnosis information. This is \textbf{not} a problem for widely
+deployed software projects. In those projects, the same failure tends to quickly occur
+for many times on many users' machines
+\cite{hunt.sosp09}. However, this is a problem
+for software that is not widely deployed.
+
+We quantitatively measured the impact of sampling to diagnosis latency in 
+Table \ref{tab:LBR}. As we can see, three benchmarks need about 100 failure
+runs for their sampling-based diagnosis to produce useful results; 
+four benchmarks need about 500 failure runs; and one benchmark, Apache\#3278, 
+needs more than 1000 failure runs. This
+indicates longer diagnosis latencies than the non-sampling-based diagnosis
+evaluated in Section \ref{sec:inhouse}, where only 10 failure runs are used.
+
+Interestingly, there are 11 benchmarks, whose diagnosis latency is \textbf{not}
+lengthened by sampling. As shown in Table \ref{tab:LBR}, even with only
+10 failure runs, the sampling-based diagnosis still produces good failure
+predictors. These are exactly all the 11 benchmarks that $\Delta$LDA model 
+suits in Table \ref{tab:in-house}. 
+For all these benchmarks,
+the rankings are exactly the same with or without
+sampling, with just 10 failure runs. Consequently, sampling
+allows us to achieve low run-time overhead ($<$10\%), high diagnosis capability,
+and low diagnosis latency \textbf{simultaneously}, a feat that is almost 
+impossible
+for sampling based functional bug diagnosis.
+%TODO linhai please check if liblit's work did some experiments on this.
+
+The nice results for these 11 benchmarks can be explained by a unique feature
+of performance bugs, especially loop-related
+performance bugs --- their root-cause related predicates are often evaluated to 
+be true for many times in one run, which is why the performance is poor.
+Consequently, even under sparse sampling, there is still a high chance that the
+root-cause related predicates can be sampled, and be sampled more frequently
+than root-cause unrelated predicates.
+
+
+Finally, even for the other 9 benchmarks, 
+$\frac{1}{10^4}$ sampling rate does not 
+extend diagnosis
+latency by $10^4$ times. In fact, for most of these benchmarks, 100 -- 500
+failure runs are sufficient for failure diagnosis under 
+$\frac{1}{10^4}$ sampling
+rate. Our investigation shows that the root-cause code regions in these 
+benchmarks
+are all executed for several times during the user-reported failure runs, 
+which
+is likely part of the reason why users perceived the performance problems. 
+Consequently, the negative impact of sampling on diagnosis latency is
+alleviated.
+
+\comment{
+\begin{table}[h!]
+  \centering
+  \small
+  \newcommand{\Yes}[1]{\checkmark{}$_#1$}
+  \newcommand{\No}[0]{-}
+  \begin{tabular}{lccc}
+    \toprule     
+   {\bf BugID} & \multicolumn{3}{c}{Sampling Rate} \\
+                           
+   \cmidrule(lr){2-4}
+
+                        &  1/10 & 1/100 & 1/1000                     \\
+    \midrule 
+
+    Mozilla258793       & \Yes{1}    &  \Yes{1}      &  \Yes{1}    \\
+    Mozilla299742       & \Yes{1}    &  \Yes{1}      &  \Yes{2}       \\
+    Mozilla347306       & \Yes{1}    &  \Yes{1}      &  \Yes{1}      \\
+    Mozilla416628       & \Yes{1}    &  \Yes{1}      &  \Yes{1}       \\
+    \midrule
+    MySQL15811          &  \Yes{1}   &  \Yes{1}      &  \Yes{1}      \\
+    MySQL26527          &  \Yes{1}   &  \Yes{1}      &  \No      \\
+    MySQL27287          &  \Yes{1}   &  \Yes{1}      &  \Yes{1}       \\
+    MySQL40337          &            &     &        \\
+    MySQL42649          &  \Yes{1}   &  \Yes{1}      &  \No        \\
+    MySQL44723          &  \Yes{1}   &  \Yes{1}      &  \Yes{1}       \\
+    \midrule
+    Apache3278          & \Yes{1}    &  \Yes{1}      &   \No    \\
+    Apache34464         & \Yes{1}    &  \Yes{1}      &   \Yes{1}    \\
+    Apache47223         & \Yes{1}    &  \Yes{1}      &   \Yes{1}     \\
+    Apache32546         & \Yes{1}    &  \Yes{1}      &   \Yes{1}     \\
+    \midrule
+    GCC1687             & \Yes{1}    &  \Yes{1}      &   \Yes{1}      \\
+    GCC8805             & \No        &  \No          &   \No       \\
+    GCC15209            & \Yes{1}    &  \Yes{1}      &   \Yes{1}      \\
+    GCC21430            & \Yes{1}    &  \Yes{1}      &   \Yes{1}     \\
+    GCC46401            & \Yes{2}    &  \Yes{2}      &   \Yes{2}     \\
+    GCC12322            &     &     &        \\
+
+    \bottomrule
+   \end{tabular}
+  \nocaptionrule
+  \caption{Diagnosis capability under different sampling rates}
+  \label{tab:rate}
+\end{table}
+}
+
+
+

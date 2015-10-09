@@ -1,0 +1,26 @@
+\usepackage{caption}\DeclareCaptionType{copyrightbox}
+\usepackage{float}
+
+\captionsetup{labelseparator=period, labelfont=bf, position=below}
+\floatstyle{plain}
+\restylefloat{figure}
+\restylefloat{table}
+
+\AtBeginDocument{%
+  \let\oldcaption\caption
+  \renewcommand{\caption}[1]{%
+
+    % \vspace{-6pt}
+    %
+    \if\@caprule
+      \rule{\linewidth}{.33pt}
+    \else
+      \rule{\linewidth}{0pt}
+    \fi
+    %
+    \vspace{-2\baselineskip}
+    \vspace{4pt}
+    %
+    \oldcaption{#1}}}
+
+% LocalWords:  labelseparator labelfont

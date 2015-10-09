@@ -1,0 +1,128 @@
+
+
+
+
+We also tried statistical debugging using the $\Delta$LDA model
+together with the branch, return, and scalar-pair predicates. 
+For branch predicates, we focus on predicates collected
+at loop-condition branches here and we will refer to them as 
+``Branch$_{\text{loop}}$'' in 
+Table \ref{tab:in-house}.
+
+As shown in Table~\ref{tab:in-house},
+$\Delta$LDA model well complements the statistical debugging 
+designs discussed earlier
+(i.e., basic statistical model).
+In 11 out of 12 cases where the basic statistical model fails to identify
+good failure predictors, useful failure predictors are identified by
+the $\Delta$LDA model.
+
+Among the three different types of predicates, branch predicates are the
+most useful --- help diagnosing 11 cases under $\Delta$LDA model. 
+In general, when a loop-branch predicate $b$ is considered as a failure
+predictor by the $\Delta$LDA statistical model, it indicates that $b$'s
+corresponding loop executes many more iterations
+during failure runs than during success runs.
+
+%TODO Example
+
+
+
+In eight cases, the loop ranked number one is exactly the root cause of 
+computation
+inefficiency. Developers fix this problem by (1) completely removing the
+inefficient loop from the program (indicated by ``Remove the loop'' in 
+Table \ref{tab:in-house});  
+(2) reduce the workload of the loop (indicated by ``Reduce \# loop iterations'' in Table \ref{tab:in-house}); or
+(3) remove redundancy
+across loop iterations or across loop instances
+(indicated by ``Combine loop iterations'' or ``Combine loop instances'' in Table \ref{tab:in-house}).
+
+In three cases, the root-cause loop is ranked within top four (second, third, 
+and fourth, respectively), but not number one. The reason is that the loop
+ranked number one is actually part of the \textit{effect} of the performance
+problem. For example, in GCC\#8805 and GCC\#46401, the root-cause loop
+produces more than necessary amount of work for later loops to handle, which
+causes later loops to execute many more iterations during failure runs
+than success runs.
+
+In one case, GCC\#12322, the root-cause loop is not ranked within top five
+by $\Delta$LDA model. Similar with GCC\#8805 and GCC\#46401, the root cause
+loop produces many unnecessary tasks. In GCC\#12322, these tasks 
+happen to be processed by many follow-up
+nested loops. The inner loops of those nested loops are all ranked higher
+than the root-cause loop, %as they experience more significant iteration-number 
+as they experience many more iteration-number 
+increases from success runs to failure runs. 
+
+
+
+Return predicates and scalar-pair predicates can also help diagnose some
+performance problems under the $\Delta$LDA model, but their diagnosis
+capability is subsumed by branch$_{\text{loop}}$ predicates in our evaluation,
+as shown in Table \ref{tab:in-house}.
+For the six cases when a scalar-pair predicate $p$ is identified as a good 
+failure 
+predictor, $p$ is exactly part of the condition evaluated by a corresponding
+branch$_{\text{loop}}$ failure predictor.
+For the seven cases when a function-return predicate
+$f$ is identified as a good failure predictor, $f$ is ranked high by the
+statistical model because it is inside a loop that corresponds to a highly
+ranked branch$_{\text{loop}}$ failure predictor.
+
+\begin{table*}[tb!]
+\begin{adjustwidth}{-.5in}{-.5in}
+\small
+\centering
+{
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\multicolumn{1}{|c|}{Fix Categories} &Apache&Chrome&GCC&Mozilla&MySQL&Total\\
+\hline
+Total \# of loop-related bugs    & 10 & 4 & 7 & 12 & 10 & 43 \\
+\hline
+
+Remove the loop                                                       &0&1&2&4&3&10    \\
+Combine loop instances (removing cross-loop redundancies)             &3&2&0&4&1&10   \\
+Reduce \# loop iterations (reduce the workload of the loop)           &0&0&4&2&2&8    \\
+Combine loop iterations (removing cross-iteration redundancies)       &6&1&1&1&1&10   \\
+Others                                                                &1&0&0&1&3&5    \\
+\hline
+\end{tabular}
+}
+\end{adjustwidth}
+\caption{Fix strategies for loop-related bugs}
+\label{tab:loop-rootcause}
+\end{table*}
+
+
+
+\paragraph{Comparing with the profiler} 
+$\Delta$LDA model is good at identifying root causes located inside loops. 
+Since functions that contain loops tend to rank high by profilers, profilers
+perform better for this set of performance problems than the ones discussed
+in Section \ref{sec:inhousebasic}. In comparison, statistical debugging still
+behaves better.
+
+In terms of identifying root causes, $\Delta$LDA model always ranks the
+root cause loop/function equally good (in 7 cases) 
+or better (in 4 cases) than profilers. There are mainly two reasons that 
+$\Delta$LDA is better. First, sometimes, the root-cause loop does not take
+much time. They simply produce unnecessary tasks for later loops to process.
+For example, in GCC\#8805, the function that contains the root-cause loop
+only ranks 20th by profiler. However, it is still ranked high by $\Delta$LDA
+model, because the loop-iteration-number change is huge between
+success and failure runs. Second, sometimes, functions
+called inside an inefficient loop take a lot of time. 
+Profilers rank those functions high, while those functions actually do not
+have any inefficiency problems.
+
+Considering call-stack functions in the profiling results (``Stack'' column
+in Table \ref{tab:in-house}) does not make profiler much more useful.
+For example, the root cause function of GCC\#46401 ranks fifth in
+the profiling result. This function is also one of the callers' callers of the
+top-ranked function in the profiling results. However, since the profiler
+reports three different callers, each having 1--3 callers,
+for the top-ranked function, the effective ranking
+for the root-cause function does not change much with or without considering
+call stacks.
